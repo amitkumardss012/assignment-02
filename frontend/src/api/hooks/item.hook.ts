@@ -1,4 +1,4 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import api from "../api";
 import type { IApiResponse } from "../../types/api";
 import type { 
@@ -10,16 +10,21 @@ import type {
 } from "../../types/item";
 
 /**
- * @description Hook for fetching all items with search and pagination
+ * @description Hook for fetching all items with infinite scroll support
  */
-export const useGetAllItems = (params: IItemQueryParams) => {
-    return useQuery({
-        queryKey: ["items", params],
-        queryFn: async () => {
+export const useGetInfiniteItems = (params: Omit<IItemQueryParams, "page">) => {
+    return useInfiniteQuery({
+        queryKey: ["items", "infinite", params],
+        initialPageParam: 1,
+        queryFn: async ({ pageParam }) => {
             const { data } = await api.get<IApiResponse<IItemsResponse>>("/item", {
-                params,
+                params: { ...params, page: pageParam },
             });
             return data.data;
+        },
+        getNextPageParam: (lastPage) => {
+            const { currentPage, totalPages } = lastPage.pagination;
+            return currentPage < totalPages ? currentPage + 1 : undefined;
         },
     });
 };
