@@ -1,7 +1,6 @@
 import { useWatch, type Control, type UseFormSetValue } from "react-hook-form";
 import { useEffect } from "react";
 import { calculateInvoiceTotals } from "../utils/invoice.utils";
-import type { InvoiceFormValues } from "../validators/invoice.validator";
 
 interface InvoiceSummaryProps {
   control: Control<any>;

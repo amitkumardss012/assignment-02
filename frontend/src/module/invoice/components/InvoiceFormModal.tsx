@@ -44,7 +44,6 @@ export function InvoiceFormModal() {
     control,
     reset,
     setValue,
-    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(invoiceFormSchema),
@@ -68,7 +67,6 @@ export function InvoiceFormModal() {
     },
   });
 
-  const watchedDate = watch("date");
   const [date, setDate] = useState<Date | undefined>(new Date());
 
   useEffect(() => {

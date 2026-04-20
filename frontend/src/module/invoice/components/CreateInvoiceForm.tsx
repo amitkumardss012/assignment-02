@@ -30,7 +30,6 @@ export function CreateInvoiceForm() {
     control,
     reset,
     setValue,
-    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(invoiceFormSchema),
@@ -53,8 +52,6 @@ export function CreateInvoiceForm() {
       status: "pending" as const,
     },
   });
-
-  const watchedDate = watch("date");
   const [date, setDate] = useState<Date | undefined>(new Date());
 
   const resetForm = () => {

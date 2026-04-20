@@ -21,7 +21,6 @@ import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useFieldArray, useWatch, type Control, type FieldErrors, type UseFormRegister } from "react-hook-form";
 import { calculateRowTotal } from "../utils/invoice.utils";
-import type { InvoiceFormValues } from "../validators/invoice.validator";
 
 interface LineItemsTableProps {
   control: Control<any>;
