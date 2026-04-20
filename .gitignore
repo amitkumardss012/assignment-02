@@ -9,6 +9,7 @@ dist/
 **/dist/
 public/
 **/public/
+agent.md
 out/
 **/out/
 build/
