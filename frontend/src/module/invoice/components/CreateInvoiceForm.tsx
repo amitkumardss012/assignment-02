@@ -1,8 +1,6 @@
 import { useCreateInvoice } from "@/api/hooks/invoice.hook";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
@@ -14,12 +12,12 @@ import { format } from "date-fns";
 import { CalendarIcon, CheckCircle2, FileText, Loader2, Send, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import { generateInvoiceNumber } from "../utils/invoice.utils";
+import { invoiceFormSchema, type InvoiceFormValues } from "../validators/invoice.validator";
+import { AvailableItemsList } from "./AvailableItemsList";
 import { CustomerDetailsForm } from "./CustomerDetailsForm";
 import { InvoiceSummary } from "./InvoiceSummary";
 import { SelectedItemsList } from "./LineItemsTable";
-import { AvailableItemsList } from "./AvailableItemsList";
-import { generateInvoiceNumber } from "../utils/invoice.utils";
-import { invoiceFormSchema, type InvoiceFormValues } from "../validators/invoice.validator";
 
 export function CreateInvoiceForm() {
   const { mutate: createInvoice, isPending, isSuccess, reset: resetMutation } = useCreateInvoice();

@@ -12,8 +12,12 @@ import { useInvoiceStore } from "@/store/invoice.store";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { CalendarIcon, FileText, Sparkles, Send, Loader2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useForm } from "react-hook-form";
+import jsPDF from "jspdf";
+import { toPng } from "html-to-image";
+import { InvoicePDFTemplate } from "../../invoice/components/InvoicePDFTemplate";
 import { CustomerDetailsForm } from "../../invoice/components/CustomerDetailsForm";
 import { InvoiceSummary } from "../../invoice/components/InvoiceSummary";
 import { SelectedItemsList } from "../../invoice/components/LineItemsTable";
@@ -66,6 +70,56 @@ export function InvoiceFormModal() {
   });
 
   const [date, setDate] = useState<Date | undefined>(new Date());
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const pdfRef = useRef<HTMLDivElement>(null);
+
+  const handleDownloadPdf = async () => {
+    if (!pdfRef.current) return;
+    
+    // Safety check - make sure we have data
+    const currentData = watch();
+    if (!currentData.items || currentData.items.length === 0) {
+      alert("Invoice has no items to download.");
+      return;
+    }
+
+    try {
+      setIsGeneratingPdf(true);
+      // Extra delay for stability
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      const element = pdfRef.current;
+      const dataUrl = await toPng(element, { 
+        cacheBust: true,
+        backgroundColor: '#ffffff',
+        pixelRatio: 3, // Higher quality
+        style: {
+          opacity: '1',
+          visibility: 'visible',
+        }
+      });
+
+      if (!dataUrl) throw new Error("PDF Capture failed");
+
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "pt",
+        format: "a4"
+      });
+      
+      const imgProps = pdf.getImageProperties(dataUrl);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+      
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${currentData.invoiceNumber || "Invoice"}.pdf`);
+    } catch (error) {
+      console.error("PDF generation error:", error);
+      alert("Something went wrong while generating the PDF. Please try again.");
+    } finally {
+      setIsGeneratingPdf(false);
+    }
+  };
 
   useEffect(() => {
     if (isModalOpen) {
@@ -199,8 +253,8 @@ export function InvoiceFormModal() {
 
               <div className="flex items-center gap-3">
                 {isViewMode && (
-                  <Button type="button" variant="outline" size="sm" className="gap-2 h-11 px-4 rounded-xl font-bold">
-                    <FileText className="h-4 w-4" />
+                  <Button type="button" variant="outline" size="sm" onClick={handleDownloadPdf} disabled={isGeneratingPdf} className="gap-2 h-11 px-4 rounded-xl font-bold">
+                    {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                     Receipt PDF
                   </Button>
                 )}
@@ -253,8 +307,8 @@ export function InvoiceFormModal() {
                   </div>
 
                   {/* Intersecting Cart Table */}
-                  <div className="bg-background border border-border/40 rounded-3xl overflow-hidden shadow-sm flex-1 min-h-[300px] flex flex-col">
-                    <div className="flex-1 min-h-[300px] relative">
+                  <div className="bg-background border border-border/40 rounded-3xl overflow-hidden shadow-sm shrink-0 flex flex-col">
+                    <div className="relative">
                       <SelectedItemsList
                         control={control}
                         register={register}
@@ -292,8 +346,8 @@ export function InvoiceFormModal() {
                       >
                         Close
                       </Button>
-                      <Button type="button" className="h-14 px-10 rounded-2xl gap-3 font-bold shadow-xl shadow-primary/20 transition-all hover:scale-[1.02]">
-                        <FileText className="h-4 w-4" />
+                      <Button type="button" onClick={handleDownloadPdf} disabled={isGeneratingPdf} className="h-14 px-10 rounded-2xl gap-3 font-bold shadow-xl shadow-primary/20 transition-all hover:scale-[1.02]">
+                        {isGeneratingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
                         Download Document
                       </Button>
                   </div>
@@ -351,7 +405,7 @@ export function InvoiceFormModal() {
                           <Button
                             type="submit"
                             disabled={isPending}
-                            className="flex-[2] h-14 text-sm font-bold tracking-widest shadow-xl shadow-primary/20 rounded-2xl gap-2 w-full transition-all hover:scale-[1.01]"
+                            className="flex-2 h-14 text-sm font-bold tracking-widest shadow-xl shadow-primary/20 rounded-2xl gap-2 w-full transition-all hover:scale-[1.01]"
                           >
                             {isPending ? (
                               <Loader2 className="h-5 w-5 animate-spin" />
@@ -370,6 +424,24 @@ export function InvoiceFormModal() {
               )}
             </div>
           </form>
+        )}
+        {/* Hidden PDF template layout - Rendered in portal for cleaner layout calculation */}
+        {typeof document !== 'undefined' && createPortal(
+          <div 
+            id="pdf-render-zone"
+            style={{ 
+              position: 'fixed', 
+              left: '-9999px', 
+              top: '0', 
+              zIndex: -100,
+              background: 'white',
+              width: '842px',
+              visibility: 'visible'
+            }}
+          >
+            <InvoicePDFTemplate ref={pdfRef} data={watch()} />
+          </div>,
+          document.body
         )}
       </DialogContent>
     </Dialog>

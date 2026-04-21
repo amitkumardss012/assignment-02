@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -60,7 +61,7 @@ export function SelectedItemsList({ control, register, errors, setValue, disable
   }, [watchedItems, setValue]);
 
   return (
-    <div className="flex flex-col h-full border border-border/50 rounded-xl overflow-hidden bg-background shadow-sm transition-all duration-300">
+    <div className={cn("flex flex-col border border-border/50 rounded-xl overflow-hidden bg-background shadow-sm transition-all duration-300", !isViewMode && "h-full")}>
 
       <div className="bg-muted/30 px-4 py-3 border-b flex items-center justify-between sticky top-0 z-10 backdrop-blur-sm">
         <div className="flex items-center gap-2">
@@ -130,7 +131,7 @@ export function SelectedItemsList({ control, register, errors, setValue, disable
                         <SelectTrigger className="h-8 w-10 px-1 text-[10px] bg-muted/30 border-none shadow-none">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent className="min-w-[4rem]">
+                        <SelectContent className="min-w-16">
                           <SelectItem value="percentage" className="text-[10px]">%</SelectItem>
                           <SelectItem value="amount" className="text-[10px]">₹</SelectItem>
                         </SelectContent>
