@@ -65,11 +65,11 @@ export function SelectedItemsList({ control, register, errors, setValue, disable
 
       <div className="bg-muted/30 px-4 py-3 border-b flex items-center justify-between sticky top-0 z-10 backdrop-blur-sm">
         <div className="flex items-center gap-2">
-            <ShoppingBag className="h-4 w-4 text-primary" />
-            <h3 className="text-sm font-bold tracking-tight">Cart Items</h3>
-            <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">
-                {fields.length}
-            </span>
+          <ShoppingBag className="h-4 w-4 text-primary" />
+          <h3 className="text-sm font-bold tracking-tight">Selected Items</h3>
+          <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">
+            {fields.length}
+          </span>
         </div>
       </div>
 
@@ -122,27 +122,27 @@ export function SelectedItemsList({ control, register, errors, setValue, disable
                   </Select>
                 </TableCell>
                 <TableCell className="py-3">
-                   <div className="flex items-center gap-1">
-                      <Select
-                        disabled={disabled}
-                        defaultValue={(field as any).discountType}
-                        onValueChange={(val: any) => setValue(`items.${index}.discountType`, val)}
-                      >
-                        <SelectTrigger className="h-8 w-10 px-1 text-[10px] bg-muted/30 border-none shadow-none">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="min-w-16">
-                          <SelectItem value="percentage" className="text-[10px]">%</SelectItem>
-                          <SelectItem value="amount" className="text-[10px]">₹</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        type="number"
-                        {...register(`items.${index}.discountValue` as const, { valueAsNumber: true })}
-                        disabled={disabled}
-                        className="h-8 w-12 text-xs bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary shadow-none px-1"
-                      />
-                    </div>
+                  <div className="flex items-center gap-1">
+                    <Select
+                      disabled={disabled}
+                      defaultValue={(field as any).discountType}
+                      onValueChange={(val: any) => setValue(`items.${index}.discountType`, val)}
+                    >
+                      <SelectTrigger className="h-8 w-10 px-1 text-[10px] bg-muted/30 border-none shadow-none">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="min-w-16">
+                        <SelectItem value="percentage" className="text-[10px]">%</SelectItem>
+                        <SelectItem value="amount" className="text-[10px]">₹</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Input
+                      type="number"
+                      {...register(`items.${index}.discountValue` as const, { valueAsNumber: true })}
+                      disabled={disabled}
+                      className="h-8 w-12 text-xs bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary shadow-none px-1"
+                    />
+                  </div>
                 </TableCell>
                 <TableCell className="text-right font-bold text-sm text-primary py-3">
                   ₹{(watchedItems?.[index] as any)?.rowTotal?.toLocaleString() || "0"}
@@ -178,9 +178,9 @@ export function SelectedItemsList({ control, register, errors, setValue, disable
       </div>
       {errors.items && (
         <div className="p-2 border-t bg-destructive/10">
-            <p className="text-[10px] font-bold text-destructive text-center uppercase tracking-wider">
-                {errors.items.message || (errors.items as any).root?.message}
-            </p>
+          <p className="text-[10px] font-bold text-destructive text-center uppercase tracking-wider">
+            {errors.items.message || (errors.items as any).root?.message}
+          </p>
         </div>
       )}
     </div>

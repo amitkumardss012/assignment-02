@@ -8,22 +8,31 @@ interface InvoicePDFTemplateProps {
 
 export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateProps>(
   ({ data }, ref) => {
-    const discountedItems = data.items.filter(item => {
-      const discountVal = item.discountType === 'percentage' 
-        ? (item.basePrice * item.quantity * item.discountValue) / 100 
-        : item.discountValue;
+    const discountedItems = (data.items || []).filter(item => {
+      const basePrice = Number(item.basePrice) || 0;
+      const quantity = Number(item.quantity) || 0;
+      const discountValue = Number(item.discountValue) || 0;
+      const discountVal = item.discountType === 'percentage'
+        ? (basePrice * quantity * discountValue) / 100
+        : discountValue;
       return discountVal > 0;
     });
 
-  discountedItems.length > 0 
-      ? `(₹${discountedItems.reduce((acc, item) => acc + (item.discountType === 'percentage' ? (item.basePrice * item.quantity * item.discountValue) / 100 : item.discountValue), 0).toFixed(2)} total savings)`
+    const totalSavingsStr = discountedItems.length > 0
+      ? `(₹${discountedItems.reduce((acc, item) => {
+          const bp = Number(item.basePrice) || 0;
+          const qty = Number(item.quantity) || 0;
+          const dv = Number(item.discountValue) || 0;
+          const saving = item.discountType === 'percentage' ? (bp * qty * dv) / 100 : dv;
+          return acc + saving;
+        }, 0).toFixed(2)} total savings)`
       : '';
 
     return (
-      <div 
-        ref={ref} 
+      <div
+        ref={ref}
         className="bg-white text-black p-12 w-[842px] min-h-[1191px] flex flex-col"
-        style={{ 
+        style={{
           fontFamily: 'Helvetica, Arial, sans-serif',
           boxSizing: 'border-box'
         }}
@@ -46,7 +55,7 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
               <div className="flex"><span className="text-gray-500 w-24">Due Date:</span> <span className="font-bold text-red-600">{data.date ? format(addDays(new Date(data.date), 15), 'MMMM d, yyyy') : 'N/A'}</span></div>
             </div>
           </div>
-          
+
           {/* Right: Customer Details */}
           <div className="text-right">
             <h2 className="font-bold text-[11px] uppercase tracking-wider mb-2 border-b border-gray-100 pb-1">Billed To:</h2>
@@ -74,20 +83,28 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
               </tr>
             </thead>
             <tbody>
-              {data.items.map((item, index) => (
-                <tr key={index}>
-                  <td className="p-3 border border-gray-200 font-bold text-gray-900">{item.name || 'Unnamed Item'}</td>
-                  <td className="p-3 border border-gray-200 text-center">{item.quantity}</td>
-                  <td className="p-3 border border-gray-200 text-right">{item.basePrice.toFixed(2)}</td>
-                  <td className="p-3 border border-gray-200 text-right">{item.gstPercentage}%</td>
-                  <td className="p-3 border border-gray-200 text-right">
-                    {item.discountType === 'percentage' 
-                      ? `${item.discountValue}%` 
-                      : `₹${item.discountValue.toFixed(2)}`}
-                  </td>
-                  <td className="p-3 border border-gray-200 text-right font-black text-gray-900">₹{item.rowTotal.toFixed(2)}</td>
-                </tr>
-              ))}
+              {(data.items || []).map((item, index) => {
+                const basePrice = Number(item.basePrice) || 0;
+                const quantity = Number(item.quantity) || 0;
+                const gstPercentage = Number(item.gstPercentage) || 0;
+                const discountValue = Number(item.discountValue) || 0;
+                const rowTotal = Number(item.rowTotal) || 0;
+                
+                return (
+                  <tr key={index}>
+                    <td className="p-3 border border-gray-200 font-bold text-gray-900">{item.name || 'Unnamed Item'}</td>
+                    <td className="p-3 border border-gray-200 text-center">{quantity}</td>
+                    <td className="p-3 border border-gray-200 text-right">₹{basePrice.toFixed(2)}</td>
+                    <td className="p-3 border border-gray-200 text-right">{gstPercentage}%</td>
+                    <td className="p-3 border border-gray-200 text-right">
+                      {item.discountType === 'percentage'
+                        ? `${discountValue}%`
+                        : `₹${discountValue.toFixed(2)}`}
+                    </td>
+                    <td className="p-3 border border-gray-200 text-right font-black text-gray-900">₹{rowTotal.toFixed(2)}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -107,24 +124,27 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
 
           {/* Right: Calculation Summary */}
           <div className="bg-gray-50/50 p-4 rounded-lg border border-gray-100">
-             <div className="text-[10px] space-y-2">
-                <div className="flex justify-between text-gray-500">
-                  <span>Subtotal Amount:</span>
-                  <span className="font-bold text-gray-900">₹{(data.totals?.subtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between text-gray-500">
-                  <span>Tax Collected:</span>
-                  <span className="font-bold text-gray-900">₹{(data.totals?.totalGst || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-                <div className="flex justify-between text-red-500 font-medium">
+            <div className="text-[10px] space-y-2">
+              <div className="flex justify-between text-gray-500">
+                <span>Subtotal Amount:</span>
+                <span className="font-bold text-gray-900">₹{(data.totals?.subtotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between text-gray-500">
+                <span>Tax Collected:</span>
+                <span className="font-bold text-gray-900">₹{(data.totals?.totalGst || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="flex justify-between text-red-500 font-medium">
+                <div className="flex flex-col items-start">
                   <span>Discount:</span>
-                  <span className="font-bold">- ₹{(data.totals?.totalDiscount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                  {totalSavingsStr && <span className="text-[8px] opacity-70 italic">{totalSavingsStr}</span>}
                 </div>
-                <div className="pt-3 mt-2 border-t border-gray-200 flex justify-between items-baseline">
-                  <span className="font-black text-[10px] uppercase tracking-tighter text-gray-400">Grand Total</span>
-                  <span className="text-xl font-black text-gray-900">₹{(data.totals?.grandTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                </div>
-             </div>
+                <span className="font-bold">- ₹{(data.totals?.totalDiscount || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </div>
+              <div className="pt-3 mt-2 border-t border-gray-200 flex justify-between items-baseline">
+                <span className="font-black text-[10px] uppercase tracking-tighter text-gray-400">Grand Total</span>
+                <span className="text-xl font-black text-gray-900">₹{(data.totals?.grandTotal || 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
