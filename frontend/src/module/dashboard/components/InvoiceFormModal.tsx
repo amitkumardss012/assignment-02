@@ -1,39 +1,31 @@
-import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { format } from "date-fns";
-import { CalendarIcon, FileText } from "lucide-react";
+import { useCreateInvoice, useGetInvoiceById, useUpdateInvoice } from "@/api/hooks/invoice.hook";
+import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useInvoiceStore } from "@/store/invoice.store";
-import { useCreateInvoice, useUpdateInvoice, useGetInvoiceById } from "@/api/hooks/invoice.hook";
-import { invoiceFormSchema, type InvoiceFormValues } from "../../invoice/validators/invoice.validator";
-import { generateInvoiceNumber } from "../../invoice/utils/invoice.utils";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { format } from "date-fns";
+import { CalendarIcon, FileText } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { CustomerDetailsForm } from "../../invoice/components/CustomerDetailsForm";
-import { LineItemsTable } from "../../invoice/components/LineItemsTable";
 import { InvoiceSummary } from "../../invoice/components/InvoiceSummary";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { LineItemsTable } from "../../invoice/components/LineItemsTable";
+import { generateInvoiceNumber } from "../../invoice/utils/invoice.utils";
+import { invoiceFormSchema, type InvoiceFormValues } from "../../invoice/validators/invoice.validator";
 
 export function InvoiceFormModal() {
   const { isModalOpen, modalMode, selectedInvoice, closeModal } = useInvoiceStore();
