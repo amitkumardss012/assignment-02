@@ -15,7 +15,7 @@ export const InvoicePDFTemplate = forwardRef<HTMLDivElement, InvoicePDFTemplateP
       return discountVal > 0;
     });
 
-    const discountBreakdown = discountedItems.length > 0 
+  discountedItems.length > 0 
       ? `(₹${discountedItems.reduce((acc, item) => acc + (item.discountType === 'percentage' ? (item.basePrice * item.quantity * item.discountValue) / 100 : item.discountValue), 0).toFixed(2)} total savings)`
       : '';
 
