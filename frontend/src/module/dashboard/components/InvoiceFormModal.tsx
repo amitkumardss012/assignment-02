@@ -4,26 +4,21 @@ import { Calendar } from "@/components/ui/calendar";
 import {
   Dialog,
   DialogContent,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { useInvoiceStore } from "@/store/invoice.store";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
-import { CalendarIcon, FileText } from "lucide-react";
+import { CalendarIcon, FileText, Sparkles, Send, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { CustomerDetailsForm } from "../../invoice/components/CustomerDetailsForm";
 import { InvoiceSummary } from "../../invoice/components/InvoiceSummary";
-import { LineItemsTable } from "../../invoice/components/LineItemsTable";
+import { SelectedItemsList } from "../../invoice/components/LineItemsTable";
+import { AvailableItemsList } from "../../invoice/components/AvailableItemsList";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { generateInvoiceNumber } from "../../invoice/utils/invoice.utils";
 import { invoiceFormSchema, type InvoiceFormValues } from "../../invoice/validators/invoice.validator";
 
@@ -44,9 +39,12 @@ export function InvoiceFormModal() {
     reset,
     setValue,
     watch,
+    trigger,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(invoiceFormSchema),
+    mode: "onSubmit",
+    reValidateMode: "onChange",
     defaultValues: {
       invoiceNumber: "",
       date: new Date().toISOString(),
@@ -63,6 +61,7 @@ export function InvoiceFormModal() {
         totalGst: 0,
         grandTotal: 0,
       },
+      status: "pending" as const,
     },
   });
 
@@ -86,6 +85,7 @@ export function InvoiceFormModal() {
             rowTotal: item.rowTotal,
           })),
           totals: fetchedInvoice.totals,
+          status: fetchedInvoice.status || "pending",
         });
         setDate(fetchedInvoice.date ? new Date(fetchedInvoice.date) : new Date());
       } else if (isCreateMode) {
@@ -106,6 +106,7 @@ export function InvoiceFormModal() {
             totalGst: 0,
             grandTotal: 0,
           },
+          status: "pending",
         });
         setDate(new Date());
       }
@@ -115,7 +116,6 @@ export function InvoiceFormModal() {
   const onSubmit = (data: InvoiceFormValues) => {
     if (isViewMode) return;
 
-    // Clean data (remove extra 'name' and 'basePrice' fields from items if BE is strict)
     const cleanedPayload = {
       ...data,
       items: data.items.map(({ name, basePrice, ...rest }: any) => rest),
@@ -135,71 +135,92 @@ export function InvoiceFormModal() {
     }
   };
 
+  const handleAddItem = (item: any) => {
+    if (isViewMode) return;
+    const currentItems = watch("items") || [];
+    const existingItemIndex = currentItems.findIndex((i: any) => i.itemId === item._id);
+
+    if (existingItemIndex !== -1) {
+      const updatedItems = [...currentItems];
+      updatedItems[existingItemIndex] = {
+        ...updatedItems[existingItemIndex],
+        quantity: (updatedItems[existingItemIndex].quantity || 1) + 1,
+      };
+      setValue("items", updatedItems, { shouldValidate: true });
+    } else {
+      setValue("items", [
+        ...currentItems,
+        {
+          name: item.name,
+          itemId: item._id,
+          quantity: 1,
+          gstPercentage: 0,
+          discountType: "percentage",
+          discountValue: 0,
+          basePrice: item.basePrice,
+          rowTotal: item.basePrice,
+        },
+      ], { shouldValidate: true });
+    }
+    trigger("items");
+  };
+
   const isPending = isCreating || isUpdating;
 
   return (
     <Dialog open={isModalOpen} onOpenChange={(open) => !open && closeModal()}>
-      <DialogContent className="sm:max-w-4xl max-h-[95vh] p-0 flex flex-col gap-0 border-none rounded-xl shadow-2xl overflow-hidden">
-        <DialogHeader className="p-6 bg-background border-b z-20 sticky top-0">
-          <div className="flex justify-between items-center pr-4">
-            <div>
-              <DialogTitle className="text-2xl font-bold tracking-tight">
-                {isCreateMode && "Create New Invoice"}
-                {isEditMode && "Edit Invoice"}
-                {isViewMode && "Invoice Details"}
-              </DialogTitle>
-              <p className="text-sm text-muted-foreground">
-                Manage invoice details, items, and calculations in one place.
-              </p>
-            </div>
-            {isViewMode && (
-              <Button variant="outline" size="sm" className="gap-2">
-                <FileText className="h-4 w-4" />
-                Download PDF
-              </Button>
-            )}
-          </div>
+      <DialogContent className="max-w-[60vw] w-[60vw] xl:max-w-[1400px] h-[90vh] p-0 flex flex-col gap-0 border-none rounded-[1.8rem] shadow-3xl overflow-hidden bg-background">
+        <DialogHeader className="p-0 h-0 w-0 overflow-hidden">
+
+
+          {/* Hidden but required for accessibility */}
+          <DialogTitle>Invoice Modal</DialogTitle>
         </DialogHeader>
 
         {isFetchingInvoice ? (
-          <div className="flex-1 flex items-center justify-center min-h-[400px]">
-             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="flex-1 flex flex-col items-center justify-center space-y-4">
+            <Loader2 className="h-10 w-10 animate-spin text-primary" />
+            <p className="text-sm font-medium text-muted-foreground animate-pulse tracking-widest uppercase">Fetching invoice data...</p>
           </div>
         ) : (
-          <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto">
-          <div className="p-8 space-y-10">
-            {/* Meta Section: ID & Date */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-muted/20 p-6 rounded-xl border border-dashed">
-              <div className="grid gap-2">
-                <Label htmlFor="inv-num">Invoice Number</Label>
-                <div className="h-10 flex items-center px-3 bg-muted font-mono font-bold rounded-md">
-                   {watch("invoiceNumber")}
+          <form onSubmit={handleSubmit(onSubmit)} className="h-full flex flex-col p-6 overflow-hidden">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-muted/20 p-6 rounded-2xl border border-dashed shadow-sm mb-6 shrink-0">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                  <h3 className="text-xl font-bold tracking-tight">
+                    {isCreateMode ? "New Transaction" : isEditMode ? "Modify Transaction" : "Transaction Record"}
+                  </h3>
                 </div>
+                <p className="text-[10px] text-muted-foreground font-bold uppercase tracking-wider">
+                  Invoice: {watch("invoiceNumber") || "Pending..."}
+                </p>
               </div>
 
-              <div className="grid gap-2">
-                <Label>Invoice Date</Label>
-                {isViewMode ? (
-                   <div className="h-10 flex items-center px-3 bg-muted/50 rounded-md font-medium">
-                      <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
-                      {date ? format(date, "PPP") : "-"}
-                   </div>
-                ) : (
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full justify-start text-left font-normal h-10 bg-background",
-                          !date && "text-muted-foreground"
-                        )}
-                        disabled={isPending}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {date ? format(date, "PPP") : <span>Pick a date</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
+              <div className="flex items-center gap-3">
+                {isViewMode && (
+                  <Button type="button" variant="outline" size="sm" className="gap-2 h-11 px-4 rounded-xl font-bold">
+                    <FileText className="h-4 w-4" />
+                    Receipt PDF
+                  </Button>
+                )}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      variant={"outline"}
+                      className={cn(
+                        "w-[180px] justify-start text-left font-bold h-11 bg-background shadow-sm rounded-xl border-border/50",
+                        !date && "text-muted-foreground"
+                      )}
+                      disabled={isPending || isViewMode}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4 text-primary" />
+                      {date ? format(date, "PPP") : <span>Date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  {!isViewMode && (
+                    <PopoverContent className="w-auto p-0" align="end">
                       <Calendar
                         mode="single"
                         selected={date}
@@ -210,63 +231,148 @@ export function InvoiceFormModal() {
                         initialFocus
                       />
                     </PopoverContent>
-                  </Popover>
-                )}
+                  )}
+                </Popover>
               </div>
             </div>
 
-            {/* Customer Section */}
-            <CustomerDetailsForm
-              register={register}
-              errors={errors}
-              disabled={isPending}
-              isViewMode={isViewMode}
-              control={control}
-            />
+            <div className="flex-1 min-h-0 overflow-hidden">
+              {isViewMode ? (
+                /* Independent View Layout */
+                <div className="h-full overflow-y-auto no-scrollbar pb-8 flex flex-col gap-8 relative px-1">
+                  
+                  {/* Customer Information View */}
+                  <div className="bg-background rounded-3xl border border-border/40 p-8 shadow-sm shrink-0">
+                    <CustomerDetailsForm
+                      register={register}
+                      errors={errors}
+                      disabled={true}
+                      control={control}
+                      isViewMode={true}
+                    />
+                  </div>
 
-            {/* Line Items Section */}
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 mb-2">
-                <div className="h-6 w-1 bg-primary rounded-full"></div>
-                <h3 className="text-sm font-bold uppercase tracking-wider">Line Items</h3>
-              </div>
-              <LineItemsTable
-                control={control}
-                register={register}
-                errors={errors}
-                setValue={setValue}
-                disabled={isPending}
-                isViewMode={isViewMode}
-              />
+                  {/* Intersecting Cart Table */}
+                  <div className="bg-background border border-border/40 rounded-3xl overflow-hidden shadow-sm flex-1 min-h-[300px] flex flex-col">
+                    <div className="flex-1 min-h-[300px] relative">
+                      <SelectedItemsList
+                        control={control}
+                        register={register}
+                        errors={errors}
+                        setValue={setValue}
+                        disabled={true}
+                        isViewMode={true}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Summary Footer */}
+                  <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start shrink-0">
+                    <div className="lg:col-span-6 xl:col-span-7 h-full">
+                      <div className="bg-muted/10 rounded-3xl p-8 border border-dashed flex flex-col items-center justify-center h-full min-h-[140px] text-center gap-3">
+                        <Sparkles className="h-6 w-6 text-primary/40" />
+                        <p className="text-sm text-muted-foreground italic font-medium leading-relaxed">
+                          Thank you for your business. This is a computer generated invoice.<br />
+                          <strong className="font-bold text-foreground/40 mt-1 block">No signature is required.</strong>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="lg:col-span-6 xl:col-span-5 w-full min-w-[300px]">
+                      <InvoiceSummary control={control} setValue={setValue} />
+                    </div>
+                  </div>
+                  
+                  {/* Scroll actions / Bottom fixed */}
+                  <div className="flex items-center justify-end gap-4 mt-4 pt-6 border-t border-dashed shrink-0">
+                     <Button
+                        type="button"
+                        variant="outline"
+                        onClick={closeModal}
+                        className="h-14 px-10 text-xs font-bold uppercase tracking-widest rounded-2xl hover:bg-muted/50 transition-colors"
+                      >
+                        Close
+                      </Button>
+                      <Button type="button" className="h-14 px-10 rounded-2xl gap-3 font-bold shadow-xl shadow-primary/20 transition-all hover:scale-[1.02]">
+                        <FileText className="h-4 w-4" />
+                        Download Document
+                      </Button>
+                  </div>
+                </div>
+              ) : (
+                /* Edit/Create POS Layout */
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 h-full overflow-hidden">
+                  {/* Left Column: Product Selection */}
+                  <div className="hidden lg:block lg:col-span-4 h-full overflow-hidden border border-border/40 rounded-3xl bg-background shadow-sm">
+                    <AvailableItemsList onAddItem={handleAddItem} disabled={isPending} />
+                  </div>
+
+                  {/* Right Column: Billing & Details */}
+                  <div className="lg:col-span-8 flex flex-col gap-6 h-full overflow-hidden">
+                    {/* Scrollable selected items */}
+                    <div className="flex-1 min-h-0 bg-background border border-border/40 rounded-3xl shadow-sm overflow-hidden flex flex-col">
+                      <SelectedItemsList
+                        control={control}
+                        register={register}
+                        errors={errors}
+                        setValue={setValue}
+                        disabled={isPending}
+                        isViewMode={false}
+                      />
+                    </div>
+
+                    {/* Customer Details Form */}
+                    <div className="bg-background rounded-3xl border border-border/40 p-6 shadow-sm shrink-0">
+                      <CustomerDetailsForm
+                        register={register}
+                        errors={errors}
+                        disabled={isPending}
+                        control={control}
+                        isViewMode={false}
+                      />
+                    </div>
+
+                    {/* Price Summary & Action */}
+                    <div className="grid grid-cols-1 xl:grid-cols-5 gap-6 items-stretch shrink-0">
+                      <div className="xl:col-span-3 min-w-[280px]">
+                        <InvoiceSummary control={control} setValue={setValue} />
+                      </div>
+
+                      <div className="xl:col-span-2 flex flex-col justify-end gap-3 h-full pb-1">
+                        <div className="flex flex-col sm:flex-row xl:flex-col gap-4 w-full">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={closeModal}
+                            disabled={isPending}
+                            className="flex-1 h-14 text-xs font-bold uppercase tracking-widest rounded-2xl border-dashed hover:bg-destructive/5 hover:text-destructive hover:border-destructive/30 transition-colors"
+                          >
+                            Abort
+                          </Button>
+                          <Button
+                            type="submit"
+                            disabled={isPending}
+                            className="flex-[2] h-14 text-sm font-bold tracking-widest shadow-xl shadow-primary/20 rounded-2xl gap-2 w-full transition-all hover:scale-[1.01]"
+                          >
+                            {isPending ? (
+                              <Loader2 className="h-5 w-5 animate-spin" />
+                            ) : (
+                              <>
+                                <Send className="h-4 w-4" />
+                                {isCreateMode ? "FINALIZE" : "UPDATE RECORD"}
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-
-            {/* Summary Section */}
-            <div className="flex justify-end pt-6 border-t">
-              <div className="w-full md:w-1/2">
-                <InvoiceSummary control={control} setValue={setValue} />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter className="p-6 bg-muted/40 border-t sticky bottom-0 z-20">
-            <Button
-              type="button"
-              variant="outline"
-              onClick={closeModal}
-              disabled={isPending}
-              className="px-8 tracking-wide"
-            >
-              {isViewMode ? "Close" : "Cancel"}
-            </Button>
-            {!isViewMode && (
-              <Button type="submit" disabled={isPending} className="px-10 font-bold shadow-lg shadow-primary/20">
-                {isPending ? "Processing..." : isCreateMode ? "Generate Invoice" : "Save Changes"}
-              </Button>
-            )}
-          </DialogFooter>
-        </form>
+          </form>
         )}
       </DialogContent>
     </Dialog>
   );
 }
+

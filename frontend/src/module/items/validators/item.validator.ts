@@ -18,8 +18,8 @@ export const itemVariantSchema = z.object({
 });
 
 export const itemFormSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  description: z.string().min(5, "Description must be at least 5 characters"),
-  basePrice: z.number().min(0.01, "Base price must be greater than 0"),
-  variants: z.array(itemVariantSchema),
+  name: z.string().min(1, "Item name is required").max(100).trim(),
+  description: z.string().min(1, "Description is required").max(500).trim(),
+  basePrice: z.number().min(0, "Base price cannot be negative"),
+  variants: z.array(itemVariantSchema).default([]),
 });

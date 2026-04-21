@@ -1,7 +1,5 @@
-import { useGetInfiniteItems } from "@/api/hooks/item.hook";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -17,13 +15,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Trash2, ShoppingBag } from "lucide-react";
+import { useEffect } from "react";
 import { useFieldArray, useWatch, type Control, type FieldErrors, type UseFormRegister } from "react-hook-form";
 import { calculateRowTotal } from "../utils/invoice.utils";
-import { useDebounce } from "@/hooks/use-debounce";
 
-interface LineItemsTableProps {
+interface SelectedItemsListProps {
   control: Control<any>;
   register: UseFormRegister<any>;
   errors: FieldErrors<any>;
@@ -32,16 +29,11 @@ interface LineItemsTableProps {
   isViewMode?: boolean;
 }
 
-export function LineItemsTable({ control, register, errors, setValue, disabled, isViewMode }: LineItemsTableProps) {
-  const { fields, append, remove } = useFieldArray({
+export function SelectedItemsList({ control, register, errors, setValue, disabled, isViewMode }: SelectedItemsListProps) {
+  const { fields, remove } = useFieldArray({
     control,
     name: "items",
   });
-
-  const [search, setSearch] = useState("");
-  const debouncedSearch = useDebounce(search, 500);
-  const { data: itemPages } = useGetInfiniteItems({ name: debouncedSearch });
-  const itemsList = itemPages?.pages.flatMap(p => p.items) || [];
 
   const watchedItems = useWatch({
     control,
@@ -61,166 +53,122 @@ export function LineItemsTable({ control, register, errors, setValue, disabled, 
 
       const { rowTotal } = calculateRowTotal(calculationRow);
 
-      // Update only if different to avoid infinite loops
       if (item.rowTotal !== rowTotal) {
         setValue(`items.${index}.rowTotal`, rowTotal);
       }
     });
   }, [watchedItems, setValue]);
 
-  const handleAddItem = (item: any) => {
-    append({
-      itemId: item._id,
-      quantity: 1,
-      gstPercentage: 0,
-      discountType: "percentage",
-      discountValue: 0,
-      basePrice: item.basePrice,
-      rowTotal: item.basePrice,
-    });
-  };
-
   return (
-    <div className="space-y-6">
-      {!isViewMode && (
-        <div className="flex flex-col gap-4 bg-muted/30 p-4 rounded-lg border border-dashed">
-          <Label className="text-base font-semibold">Add Line Items</Label>
-          <div className="flex gap-2">
-            <Select onValueChange={(val) => {
-              const selected = itemsList.find(i => i._id === val);
-              if (selected) handleAddItem(selected);
-            }}>
-              <SelectTrigger className="w-full bg-background shadow-sm">
-                <SelectValue placeholder="Search or select a product..." />
-              </SelectTrigger>
-              <SelectContent>
-                <div className="p-2 sticky top-0 bg-popover z-10">
-                  <Input
-                    placeholder="Filter products..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="h-8"
-                  />
-                </div>
-                {itemsList.map((item) => (
-                  <SelectItem key={item._id} value={item._id}>
-                    {item.name} - ₹{item.basePrice.toFixed(2)}
-                  </SelectItem>
-                ))}
-                {itemsList.length === 0 && <div className="p-2 text-sm text-center text-muted-foreground">No products found</div>}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      )}
+    <div className="flex flex-col h-full border border-border/50 rounded-xl overflow-hidden bg-background shadow-sm transition-all duration-300">
 
-      <div className="rounded-md border bg-background shadow-sm overflow-hidden">
+      <div className="bg-muted/30 px-4 py-3 border-b flex items-center justify-between sticky top-0 z-10 backdrop-blur-sm">
+        <div className="flex items-center gap-2">
+            <ShoppingBag className="h-4 w-4 text-primary" />
+            <h3 className="text-sm font-bold tracking-tight">Cart Items</h3>
+            <span className="bg-primary/10 text-primary text-[10px] px-2 py-0.5 rounded-full font-bold">
+                {fields.length}
+            </span>
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-y-auto no-scrollbar">
         <Table>
-          <TableHeader className="bg-muted/50">
-            <TableRow>
-              <TableHead className="w-[200px]">Product</TableHead>
-              <TableHead className="w-[100px]">Qty</TableHead>
-              <TableHead className="w-[120px]">GST %</TableHead>
-              <TableHead className="w-[200px]">Discount</TableHead>
-              <TableHead className="text-right">Total (₹)</TableHead>
-              <TableHead className="w-[50px]"></TableHead>
+          <TableHeader className="bg-muted/10 sticky top-0 z-10 backdrop-blur-sm border-b">
+            <TableRow className="hover:bg-transparent border-none">
+              <TableHead className="text-[10px] uppercase font-bold tracking-widest py-2">Item</TableHead>
+              <TableHead className="text-[10px] uppercase font-bold tracking-widest text-center py-2">Qty</TableHead>
+              <TableHead className="text-[10px] uppercase font-bold tracking-widest py-2">Tax %</TableHead>
+              <TableHead className="text-[10px] uppercase font-bold tracking-widest py-2">Disc</TableHead>
+              <TableHead className="text-right text-[10px] uppercase font-bold tracking-widest py-2">Total</TableHead>
+              {!isViewMode && <TableHead className="w-[40px]"></TableHead>}
             </TableRow>
           </TableHeader>
+
           <TableBody>
             {fields.map((field, index) => (
-              <TableRow key={field.id} className="animate-in fade-in duration-200">
-                <TableCell>
+              <TableRow key={field.id} className="hover:bg-muted/20 transition-colors animate-in fade-in slide-in-from-right-4 duration-300">
+                <TableCell className="py-3">
                   <div className="flex flex-col">
-                    <span className="font-medium">{(watchedItems?.[index] as any)?.name}</span>
-                    <span className="text-[10px] text-muted-foreground uppercase tracking-widest">Base: ₹{(watchedItems?.[index] as any)?.basePrice?.toFixed(2)}</span>
+                    <span className="font-bold text-sm">{(field as any).name}</span>
+                    <span className="text-[10px] text-muted-foreground font-mono">
+                      ₹{(field as any).basePrice?.toLocaleString()}
+                    </span>
                   </div>
                 </TableCell>
-                <TableCell>
-                  {isViewMode ? (
-                    <span className="font-medium text-sm">{(watchedItems?.[index] as any)?.quantity || 0}</span>
-                  ) : (
-                    <Input
-                      type="number"
-                      {...register(`items.${index}.quantity` as const, { valueAsNumber: true })}
-                      disabled={disabled}
-                      className="h-8 w-16"
-                    />
-                  )}
+                <TableCell className="py-3">
+                  <Input
+                    type="number"
+                    {...register(`items.${index}.quantity` as const, { valueAsNumber: true })}
+                    disabled={disabled}
+                    className="h-8 w-14 text-center font-bold bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary shadow-none"
+                  />
                 </TableCell>
-                <TableCell>
-                  {isViewMode ? (
-                    <span className="text-sm">{(field as any).gstPercentage || 0}%</span>
-                  ) : (
-                    <Select
-                      disabled={disabled}
-                      defaultValue={String((field as any).gstPercentage)}
-                      onValueChange={(val) => setValue(`items.${index}.gstPercentage`, Number(val))}
-                    >
-                      <SelectTrigger className="h-8 w-24">
-                        <SelectValue placeholder="GST" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {[0, 5, 12, 18, 28].map(gst => (
-                          <SelectItem key={gst} value={String(gst)}>{gst}%</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                <TableCell className="py-3">
+                  <Select
+                    disabled={disabled}
+                    defaultValue={String((field as any).gstPercentage)}
+                    onValueChange={(val) => setValue(`items.${index}.gstPercentage`, Number(val))}
+                  >
+                    <SelectTrigger className="h-8 w-16 px-2 text-xs bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary shadow-none">
+                      <SelectValue placeholder="Tax" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {[0, 5, 12, 18, 28].map(gst => (
+                        <SelectItem key={gst} value={String(gst)} className="text-xs">{gst}%</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </TableCell>
-                <TableCell>
-                  {isViewMode ? (
-                    <span className="text-sm">
-                      {(field as any).discountType === "percentage" ? "" : "₹"}
-                      {(field as any).discountValue || 0}
-                      {(field as any).discountType === "percentage" ? "%" : ""}
-                    </span>
-                  ) : (
-                    <div className="flex items-center gap-1">
+                <TableCell className="py-3">
+                   <div className="flex items-center gap-1">
                       <Select
                         disabled={disabled}
                         defaultValue={(field as any).discountType}
                         onValueChange={(val: any) => setValue(`items.${index}.discountType`, val)}
                       >
-                        <SelectTrigger className="h-8 w-16 px-1 text-[10px]">
+                        <SelectTrigger className="h-8 w-10 px-1 text-[10px] bg-muted/30 border-none shadow-none">
                           <SelectValue />
                         </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="percentage">%</SelectItem>
-                          <SelectItem value="amount">₹</SelectItem>
+                        <SelectContent className="min-w-[4rem]">
+                          <SelectItem value="percentage" className="text-[10px]">%</SelectItem>
+                          <SelectItem value="amount" className="text-[10px]">₹</SelectItem>
                         </SelectContent>
                       </Select>
                       <Input
                         type="number"
                         {...register(`items.${index}.discountValue` as const, { valueAsNumber: true })}
                         disabled={disabled}
-                        className="h-8 flex-1"
+                        className="h-8 w-12 text-xs bg-muted/30 border-none focus-visible:ring-1 focus-visible:ring-primary shadow-none px-1"
                       />
                     </div>
-                  )}
                 </TableCell>
-                <TableCell className="text-right font-bold text-primary">
-                  ₹{(watchedItems?.[index] as any)?.rowTotal?.toFixed(2) || "0.00"}
+                <TableCell className="text-right font-bold text-sm text-primary py-3">
+                  ₹{(watchedItems?.[index] as any)?.rowTotal?.toLocaleString() || "0"}
                 </TableCell>
-                <TableCell>
-                  {!isViewMode && (
+                {!isViewMode && (
+                  <TableCell className="py-3">
                     <Button
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      className="h-7 w-7 text-muted-foreground hover:text-destructive transition-colors"
                       onClick={() => remove(index)}
                       disabled={disabled}
                     >
-                      <Trash2 className="h-4 w-4" />
+                      <Trash2 className="h-3.5 w-3.5" />
                     </Button>
-                  )}
-                </TableCell>
+                  </TableCell>
+                )}
               </TableRow>
             ))}
             {fields.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground italic">
-                  No line items added. Select a product above to start.
+                <TableCell colSpan={6} className="h-64 text-center">
+                  <div className="flex flex-col items-center justify-center space-y-2 opacity-30">
+                    <ShoppingBag className="h-10 w-10" />
+                    <p className="text-xs font-medium italic">Your cart is empty</p>
+                  </div>
                 </TableCell>
               </TableRow>
             )}
@@ -228,8 +176,13 @@ export function LineItemsTable({ control, register, errors, setValue, disabled, 
         </Table>
       </div>
       {errors.items && (
-        <p className="text-sm font-medium text-destructive mt-2">{errors.items.message || (errors.items as any).root?.message}</p>
+        <div className="p-2 border-t bg-destructive/10">
+            <p className="text-[10px] font-bold text-destructive text-center uppercase tracking-wider">
+                {errors.items.message || (errors.items as any).root?.message}
+            </p>
+        </div>
       )}
     </div>
   );
 }
+
