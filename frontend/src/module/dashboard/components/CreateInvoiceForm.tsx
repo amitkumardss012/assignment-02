@@ -8,18 +8,24 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { CalendarIcon, CheckCircle2, FileText } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { generateInvoiceNumber } from "../utils/invoice.utils";
-import { invoiceFormSchema, type InvoiceFormValues } from "../validators/invoice.validator";
-import { CustomerDetailsForm } from "./CustomerDetailsForm";
-import { InvoiceSummary } from "./InvoiceSummary";
-import { LineItemsTable } from "./LineItemsTable";
+import { generateInvoiceNumber } from "../../invoice/utils/invoice.utils";
+import { invoiceFormSchema, type InvoiceFormValues } from "../../invoice/validators/invoice.validator";
+import { CustomerDetailsForm } from "../../invoice/components/CustomerDetailsForm";
+import { InvoiceSummary } from "../../invoice/components/InvoiceSummary";
+import { LineItemsTable } from "../../invoice/components/LineItemsTable";
 
 export function CreateInvoiceForm() {
   const { mutate: createInvoice, isPending, isSuccess, reset: resetMutation } = useCreateInvoice();
@@ -30,6 +36,7 @@ export function CreateInvoiceForm() {
     control,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(invoiceFormSchema),
@@ -124,11 +131,11 @@ export function CreateInvoiceForm() {
           <Input
             id="inv-num"
             {...register("invoiceNumber")}
-            disabled={true} 
+            disabled={true}
             className="bg-muted/50 font-mono font-bold tracking-wider"
           />
         </div>
-        
+
         <div className="grid gap-2">
           <Label>Date of Issue</Label>
           <Popover>
@@ -166,10 +173,10 @@ export function CreateInvoiceForm() {
       <div className="h-px w-full bg-border" />
 
       {/* Customer Section */}
-      <CustomerDetailsForm 
-        register={register} 
-        errors={errors} 
-        disabled={isPending} 
+      <CustomerDetailsForm
+        register={register}
+        errors={errors}
+        disabled={isPending}
       />
 
       <div className="h-px w-full bg-border" />
@@ -180,12 +187,12 @@ export function CreateInvoiceForm() {
           <div className="h-6 w-1 bg-primary rounded-full"></div>
           <h3 className="text-lg font-bold tracking-tight">Line Items</h3>
         </div>
-        <LineItemsTable 
-          control={control} 
-          register={register} 
-          errors={errors} 
+        <LineItemsTable
+          control={control}
+          register={register}
+          errors={errors}
           setValue={setValue}
-          disabled={isPending} 
+          disabled={isPending}
         />
       </div>
 
@@ -194,12 +201,21 @@ export function CreateInvoiceForm() {
       {/* Summary Section */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start pt-6">
         <div className="space-y-4 bg-muted/20 p-6 rounded-xl border border-dashed">
-            <Label className="text-sm font-medium">Internal Notes & Terms (Optional)</Label>
-            <Textarea 
-            placeholder="Add any payment terms, internal references, or notes for the client..." 
-            className="h-32 resize-none bg-background"
+          <Label className="text-sm font-medium">Invoice Status</Label>
+          <Select
             disabled={isPending}
-            />
+            value={watch("status")}
+            onValueChange={(val: any) => setValue("status", val)}
+          >
+            <SelectTrigger className="w-full bg-background shadow-sm h-10">
+              <SelectValue placeholder="Select Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="pending">Pending</SelectItem>
+              <SelectItem value="paid">Paid</SelectItem>
+              <SelectItem value="overdue">Overdue</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
         <InvoiceSummary control={control} setValue={setValue} />
       </div>
@@ -209,10 +225,10 @@ export function CreateInvoiceForm() {
         <p className="text-sm text-muted-foreground px-4 hidden sm:block">
           Please double-check the line items and customer details before generating.
         </p>
-        <Button 
-          type="submit" 
-          disabled={isPending} 
-          size="lg" 
+        <Button
+          type="submit"
+          disabled={isPending}
+          size="lg"
           className="w-full sm:w-auto px-12 font-bold shadow-lg shadow-primary/30"
         >
           {isPending ? "Generating Invoice..." : "Finalize & Generate Invoice"}

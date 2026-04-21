@@ -6,22 +6,31 @@ export interface ICalculationRow {
   discountValue: number;
 }
 
+const roundToTwo = (num: any) => {
+  if (isNaN(num) || num === null || num === undefined) return 0;
+  return +(Math.round(Number(num + "e+2")) + "e-2");
+};
+
 export const calculateRowTotal = (row: ICalculationRow) => {
-  const { basePrice, quantity, gstPercentage, discountType, discountValue } = row;
+  const basePrice = Number(row.basePrice) || 0;
+  const quantity = Number(row.quantity) || 0;
+  const gstPercentage = Number(row.gstPercentage) || 0;
+  const discountValue = Number(row.discountValue) || 0;
+  const discountType = row.discountType || "percentage";
   
-  const subtotal = basePrice * quantity;
+  const subtotal = roundToTwo(basePrice * quantity);
   
   let discountAmount = 0;
   if (discountType === "percentage") {
-    discountAmount = (subtotal * discountValue) / 100;
+    discountAmount = roundToTwo((subtotal * discountValue) / 100);
   } else {
-    discountAmount = discountValue;
+    discountAmount = roundToTwo(discountValue);
   }
   
-  const priceAfterDiscount = subtotal - discountAmount;
-  const gstAmount = (priceAfterDiscount * gstPercentage) / 100;
+  const priceAfterDiscount = roundToTwo(subtotal - discountAmount);
+  const gstAmount = roundToTwo((priceAfterDiscount * gstPercentage) / 100);
   
-  const rowTotal = priceAfterDiscount + gstAmount;
+  const rowTotal = roundToTwo(priceAfterDiscount + gstAmount);
   
   return {
     subtotal,
@@ -32,7 +41,7 @@ export const calculateRowTotal = (row: ICalculationRow) => {
 };
 
 export const calculateInvoiceTotals = (rows: ICalculationRow[]) => {
-  return rows.reduce(
+  const totals = rows.reduce(
     (acc, row) => {
       const { subtotal, discountAmount, gstAmount, rowTotal } = calculateRowTotal(row);
       return {
@@ -44,6 +53,13 @@ export const calculateInvoiceTotals = (rows: ICalculationRow[]) => {
     },
     { subtotal: 0, totalDiscount: 0, totalGst: 0, grandTotal: 0 }
   );
+
+  return {
+    subtotal: roundToTwo(totals.subtotal),
+    totalDiscount: roundToTwo(totals.totalDiscount),
+    totalGst: roundToTwo(totals.totalGst),
+    grandTotal: roundToTwo(totals.grandTotal),
+  };
 };
 
 export const generateInvoiceNumber = () => {

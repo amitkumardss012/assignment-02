@@ -106,7 +106,7 @@ export function InvoiceList() {
                     <TableCell>
                       <div className="flex flex-col">
                         <span className="font-medium">{invoice.customerDetails.fullName}</span>
-                        <span className="text-[10px] text-muted-foreground">{invoice.customerDetails.emailId}</span>
+                        <span className="text-[10px] text-muted-foreground">{invoice.customerDetails.phoneNumber}</span>
                       </div>
                     </TableCell>
                     <TableCell className="text-center">
@@ -128,17 +128,13 @@ export function InvoiceList() {
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent align="end" className="w-48 rounded-xl shadow-xl border-muted/50">
-                          <DropdownMenuLabel>Invoice Actions</DropdownMenuLabel>
+                          <DropdownMenuLabel>Actions</DropdownMenuLabel>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem onClick={() => handleAction('view', invoice)} className="cursor-pointer gap-2">
-                            <Eye className="h-4 w-4 text-muted-foreground" /> View Details
+                            <Eye className="h-4 w-4 text-muted-foreground" /> View
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => handleAction('edit', invoice)} className="cursor-pointer gap-2">
-                            <Edit className="h-4 w-4 text-muted-foreground" /> Edit Invoice
-                          </DropdownMenuItem>
-                          <DropdownMenuSeparator />
-                          <DropdownMenuItem className="cursor-pointer gap-2 text-primary font-medium">
-                            <FileText className="h-4 w-4" /> Download PDF
+                            <Edit className="h-4 w-4 text-muted-foreground" /> Update
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>

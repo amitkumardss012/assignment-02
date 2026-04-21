@@ -21,18 +21,25 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { cn } from "@/lib/utils";
 import { useInvoiceStore } from "@/store/invoice.store";
-import { useCreateInvoice, useUpdateInvoice } from "@/api/hooks/invoice.hook";
-import { invoiceFormSchema, type InvoiceFormValues } from "../validators/invoice.validator";
-import { generateInvoiceNumber } from "../utils/invoice.utils";
-import { CustomerDetailsForm } from "./CustomerDetailsForm";
-import { LineItemsTable } from "./LineItemsTable";
-import { InvoiceSummary } from "./InvoiceSummary";
-import { Textarea } from "@/components/ui/textarea";
+import { useCreateInvoice, useUpdateInvoice, useGetInvoiceById } from "@/api/hooks/invoice.hook";
+import { invoiceFormSchema, type InvoiceFormValues } from "../../invoice/validators/invoice.validator";
+import { generateInvoiceNumber } from "../../invoice/utils/invoice.utils";
+import { CustomerDetailsForm } from "../../invoice/components/CustomerDetailsForm";
+import { LineItemsTable } from "../../invoice/components/LineItemsTable";
+import { InvoiceSummary } from "../../invoice/components/InvoiceSummary";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function InvoiceFormModal() {
   const { isModalOpen, modalMode, selectedInvoice, closeModal } = useInvoiceStore();
   const { mutate: createInvoice, isPending: isCreating } = useCreateInvoice();
   const { mutate: updateInvoice, isPending: isUpdating } = useUpdateInvoice();
+  const { data: fetchedInvoice, isLoading: isFetchingInvoice } = useGetInvoiceById(selectedInvoice?._id);
 
   const isViewMode = modalMode === "view";
   const isEditMode = modalMode === "edit";
@@ -44,6 +51,7 @@ export function InvoiceFormModal() {
     control,
     reset,
     setValue,
+    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(invoiceFormSchema),
@@ -71,27 +79,26 @@ export function InvoiceFormModal() {
 
   useEffect(() => {
     if (isModalOpen) {
-      if ((isEditMode || isViewMode) && selectedInvoice) {
+      if ((isEditMode || isViewMode) && fetchedInvoice) {
         reset({
-          invoiceNumber: selectedInvoice.invoiceNumber,
-          date: selectedInvoice.date || new Date().toISOString(),
-          customerDetails: selectedInvoice.customerDetails,
-          items: selectedInvoice.items.map((item: any) => ({
+          invoiceNumber: fetchedInvoice.invoiceNumber,
+          date: fetchedInvoice.date || new Date().toISOString(),
+          customerDetails: fetchedInvoice.customerDetails,
+          items: fetchedInvoice.items.map((item: any) => ({
             itemId: typeof item.itemId === 'string' ? item.itemId : item.itemId._id,
             name: typeof item.itemId === 'object' ? item.itemId.name : "Product",
             quantity: item.quantity,
             gstPercentage: item.gstPercentage,
             discountType: item.discountType,
             discountValue: item.discountValue,
-            basePrice: item.rowTotal / (item.quantity * (1 + item.gstPercentage / 100)), // Crude reverse, but usually we have it from populated item. 
-            // Better to assume we have populated it.
+            basePrice: typeof item.itemId === 'object' ? (item.itemId.basePrice || 0) : ((Number(item.rowTotal) || 0) / (Number(item.quantity) || 1)),
             rowTotal: item.rowTotal,
           })),
-          totals: selectedInvoice.totals,
-          status: selectedInvoice.status,
+          totals: fetchedInvoice.totals,
+          status: fetchedInvoice.status,
         });
-        setDate(selectedInvoice.date ? new Date(selectedInvoice.date) : new Date());
-      } else {
+        setDate(fetchedInvoice.date ? new Date(fetchedInvoice.date) : new Date());
+      } else if (isCreateMode) {
         const invNum = generateInvoiceNumber();
         reset({
           invoiceNumber: invNum,
@@ -114,7 +121,7 @@ export function InvoiceFormModal() {
         setDate(new Date());
       }
     }
-  }, [isModalOpen, isEditMode, isViewMode, selectedInvoice, reset]);
+  }, [isModalOpen, isEditMode, isViewMode, isCreateMode, fetchedInvoice, reset]);
 
   const onSubmit = (data: InvoiceFormValues) => {
     if (isViewMode) return;
@@ -158,15 +165,20 @@ export function InvoiceFormModal() {
               </p>
             </div>
             {isViewMode && (
-               <Button variant="outline" size="sm" className="gap-2">
-                 <FileText className="h-4 w-4" />
-                 Download PDF
-               </Button>
+              <Button variant="outline" size="sm" className="gap-2">
+                <FileText className="h-4 w-4" />
+                Download PDF
+              </Button>
             )}
           </div>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto">
+        {isFetchingInvoice ? (
+          <div className="flex-1 flex items-center justify-center min-h-[400px]">
+             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit(onSubmit)} className="flex-1 overflow-y-auto">
           <div className="p-8 space-y-10">
             {/* Meta Section: ID & Date */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-muted/20 p-6 rounded-xl border border-dashed">
@@ -179,7 +191,7 @@ export function InvoiceFormModal() {
                   className="bg-muted font-mono font-bold"
                 />
               </div>
-              
+
               <div className="grid gap-2">
                 <Label>Invoice Date</Label>
                 <Popover>
@@ -212,36 +224,45 @@ export function InvoiceFormModal() {
             </div>
 
             {/* Customer Section */}
-            <CustomerDetailsForm 
-              register={register} 
-              errors={errors} 
-              disabled={isViewMode || isPending} 
+            <CustomerDetailsForm
+              register={register}
+              errors={errors}
+              disabled={isViewMode || isPending}
             />
 
             {/* Line Items Section */}
             <div className="space-y-4">
-               <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2 mb-2">
                 <div className="h-6 w-1 bg-primary rounded-full"></div>
                 <h3 className="text-sm font-bold uppercase tracking-wider">Line Items</h3>
               </div>
-              <LineItemsTable 
-                control={control} 
-                register={register} 
-                errors={errors} 
+              <LineItemsTable
+                control={control}
+                register={register}
+                errors={errors}
                 setValue={setValue}
-                disabled={isViewMode || isPending} 
+                disabled={isViewMode || isPending}
               />
             </div>
 
             {/* Summary Section */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start pt-6 border-t">
               <div className="space-y-4">
-                 <Label className="text-sm font-medium">Internal Notes (Optional)</Label>
-                 <Textarea 
-                  placeholder="Notes for internal view only..." 
-                  className="h-24 resize-none"
+                <Label className="text-sm font-medium">Invoice Status</Label>
+                <Select
                   disabled={isViewMode || isPending}
-                 />
+                  value={watch("status")}
+                  onValueChange={(val: any) => setValue("status", val)}
+                >
+                  <SelectTrigger className="w-full bg-background shadow-sm h-10">
+                    <SelectValue placeholder="Select Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="overdue">Overdue</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
               <InvoiceSummary control={control} setValue={setValue} />
             </div>
@@ -264,6 +285,7 @@ export function InvoiceFormModal() {
             )}
           </DialogFooter>
         </form>
+        )}
       </DialogContent>
     </Dialog>
   );

@@ -9,7 +9,6 @@ dist/
 **/dist/
 public/
 **/public/
-agent.md
 out/
 **/out/
 build/
@@ -66,3 +65,6 @@ coverage/
 **/coverage/
 *.lcov
 .nyc_output
+
+
+about.md
