@@ -35,22 +35,30 @@ export const createInvoice = asyncHandler(async (req, res, next) => {
  * @returns {Array<IInvoice>} List of invoices with pagination data
  */
 export const getAllInvoices = asyncHandler(async (req, res, next) => {
-    const { page: pageQuery, limit: limitQuery, customerName, customerPhone, invoiceNumber } = req.query;
+    const { page: pageQuery, limit: limitQuery, customerName, customerPhone, invoiceNumber, search } = req.query;
 
     const page = Number(pageQuery) || 1;
     const limit = Number(limitQuery) || 10;
     const skip = (page - 1) * limit;
 
     const query: any = {};
-    if (typeof customerName === "string") {
-        query["customerDetails.fullName"] = { $regex: customerName, $options: "i" };
-    }
-    if (typeof invoiceNumber === "string") {
-        query.invoiceNumber = { $regex: invoiceNumber, $options: "i" };
-    }
 
-    if (typeof customerPhone === "string") {
-        query["customerDetails.phoneNumber"] = { $regex: customerPhone, $options: "i" };
+    if (typeof search === "string" && search) {
+        query.$or = [
+            { invoiceNumber: { $regex: search, $options: "i" } },
+            { "customerDetails.fullName": { $regex: search, $options: "i" } },
+            { "customerDetails.phoneNumber": { $regex: search, $options: "i" } }
+        ];
+    } else {
+        if (typeof customerName === "string") {
+            query["customerDetails.fullName"] = { $regex: customerName, $options: "i" };
+        }
+        if (typeof invoiceNumber === "string") {
+            query.invoiceNumber = { $regex: invoiceNumber, $options: "i" };
+        }
+        if (typeof customerPhone === "string") {
+            query["customerDetails.phoneNumber"] = { $regex: customerPhone, $options: "i" };
+        }
     }
 
     const { invoices, totalInvoices } = await InvoiceService.getAllInvoices(query, skip, limit);

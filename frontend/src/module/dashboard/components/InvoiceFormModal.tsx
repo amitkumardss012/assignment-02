@@ -71,7 +71,6 @@ export function InvoiceFormModal() {
         totalGst: 0,
         grandTotal: 0,
       },
-      status: "pending" as const,
     },
   });
 
@@ -95,7 +94,6 @@ export function InvoiceFormModal() {
             rowTotal: item.rowTotal,
           })),
           totals: fetchedInvoice.totals,
-          status: fetchedInvoice.status,
         });
         setDate(fetchedInvoice.date ? new Date(fetchedInvoice.date) : new Date());
       } else if (isCreateMode) {
@@ -116,7 +114,6 @@ export function InvoiceFormModal() {
             totalGst: 0,
             grandTotal: 0,
           },
-          status: "pending",
         });
         setDate(new Date());
       }
@@ -129,7 +126,6 @@ export function InvoiceFormModal() {
     // Clean data (remove extra 'name' and 'basePrice' fields from items if BE is strict)
     const cleanedPayload = {
       ...data,
-      status: data.status || "pending",
       items: data.items.map(({ name, basePrice, ...rest }: any) => rest),
     } as any;
 
@@ -184,42 +180,46 @@ export function InvoiceFormModal() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 bg-muted/20 p-6 rounded-xl border border-dashed">
               <div className="grid gap-2">
                 <Label htmlFor="inv-num">Invoice Number</Label>
-                <Input
-                  id="inv-num"
-                  {...register("invoiceNumber")}
-                  disabled={true} // Hard-coded generation
-                  className="bg-muted font-mono font-bold"
-                />
+                <div className="h-10 flex items-center px-3 bg-muted font-mono font-bold rounded-md">
+                   {watch("invoiceNumber")}
+                </div>
               </div>
 
               <div className="grid gap-2">
                 <Label>Invoice Date</Label>
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant={"outline"}
-                      className={cn(
-                        "w-full justify-start text-left font-normal h-10 bg-background",
-                        !date && "text-muted-foreground"
-                      )}
-                      disabled={isViewMode || isPending}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP") : <span>Pick a date</span>}
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={(newDate) => {
-                        setDate(newDate);
-                        if (newDate) setValue("date", newDate.toISOString());
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
+                {isViewMode ? (
+                   <div className="h-10 flex items-center px-3 bg-muted/50 rounded-md font-medium">
+                      <CalendarIcon className="mr-2 h-4 w-4 text-muted-foreground" />
+                      {date ? format(date, "PPP") : "-"}
+                   </div>
+                ) : (
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal h-10 bg-background",
+                          !date && "text-muted-foreground"
+                        )}
+                        disabled={isPending}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "PPP") : <span>Pick a date</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={(newDate) => {
+                          setDate(newDate);
+                          if (newDate) setValue("date", newDate.toISOString());
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                )}
               </div>
             </div>
 
@@ -227,7 +227,9 @@ export function InvoiceFormModal() {
             <CustomerDetailsForm
               register={register}
               errors={errors}
-              disabled={isViewMode || isPending}
+              disabled={isPending}
+              isViewMode={isViewMode}
+              control={control}
             />
 
             {/* Line Items Section */}
@@ -241,30 +243,16 @@ export function InvoiceFormModal() {
                 register={register}
                 errors={errors}
                 setValue={setValue}
-                disabled={isViewMode || isPending}
+                disabled={isPending}
+                isViewMode={isViewMode}
               />
             </div>
 
             {/* Summary Section */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start pt-6 border-t">
-              <div className="space-y-4">
-                <Label className="text-sm font-medium">Invoice Status</Label>
-                <Select
-                  disabled={isViewMode || isPending}
-                  value={watch("status")}
-                  onValueChange={(val: any) => setValue("status", val)}
-                >
-                  <SelectTrigger className="w-full bg-background shadow-sm h-10">
-                    <SelectValue placeholder="Select Status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
-                    <SelectItem value="overdue">Overdue</SelectItem>
-                  </SelectContent>
-                </Select>
+            <div className="flex justify-end pt-6 border-t">
+              <div className="w-full md:w-1/2">
+                <InvoiceSummary control={control} setValue={setValue} />
               </div>
-              <InvoiceSummary control={control} setValue={setValue} />
             </div>
           </div>
 

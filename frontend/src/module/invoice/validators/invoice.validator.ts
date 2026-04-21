@@ -31,7 +31,6 @@ export type InvoiceFormValues = {
   customerDetails: CustomerDetailsValues;
   items: LineItemValues[];
   totals: InvoiceTotalsValues;
-  status?: "pending" | "paid" | "overdue";
 };
 
 export const lineItemSchema = z.object({
@@ -64,5 +63,4 @@ export const invoiceFormSchema = z.object({
   customerDetails: customerDetailsSchema,
   items: z.array(lineItemSchema).min(1, "At least one item is required"),
   totals: invoiceTotalsSchema,
-  status: z.enum(["pending", "paid", "overdue"]).default("pending"),
 });

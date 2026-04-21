@@ -1,6 +1,7 @@
-import { useEffect, Fragment } from "react";
+import { useEffect, Fragment, useState } from "react";
 import { useInView } from "react-intersection-observer";
-import { MoreHorizontal, Eye, Edit } from "lucide-react";
+import { MoreHorizontal, Eye, Edit, Search } from "lucide-react";
+import { useDebounce } from "@/hooks/use-debounce";
 import {
   Table,
   TableBody,
@@ -19,14 +20,18 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { useGetInfiniteItems } from "@/api/hooks/item.hook";
 import { useItemStore } from "@/store/item.store";
 import type { IItem } from "@/types/item";
 
 export function ItemsTable() {
   const { ref, inView } = useInView();
+  const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
+
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError } =
-    useGetInfiniteItems({});
+    useGetInfiniteItems({ name: debouncedSearch });
   const { openModal } = useItemStore();
 
   useEffect(() => {
@@ -35,26 +40,34 @@ export function ItemsTable() {
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4 bg-background rounded-md border p-4">
-        {[...Array(5)].map((_, i) => (
-          <Skeleton key={i} className="w-full h-12" />
-        ))}
-      </div>
-    );
-  }
-
-  if (isError) {
-    return <div className="p-4 text-center text-destructive bg-destructive/10 rounded-md border border-destructive">Failed to load items. Please try again.</div>;
-  }
-
   const handleAction = (mode: 'view' | 'edit', item: IItem) => {
     openModal(mode, item);
   }
 
   return (
-    <div className="rounded-md border bg-background shadow-sm">
+    <div className="space-y-4">
+      <div className="relative group">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
+        <Input 
+          placeholder="Search items by name..." 
+          className="pl-10 h-11 bg-background"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-4 bg-background rounded-md border p-4">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="w-full h-12" />
+          ))}
+        </div>
+      ) : isError ? (
+        <div className="p-4 text-center text-destructive bg-destructive/10 rounded-md border border-destructive">
+          Failed to load items. Please try again.
+        </div>
+      ) : (
+        <div className="rounded-md border bg-background shadow-sm">
       <Table>
         <TableHeader>
           <TableRow>
@@ -119,7 +132,9 @@ export function ItemsTable() {
         ) : data?.pages[0].items.length !== 0 ? (
            <span className="text-sm text-muted-foreground opacity-50">No more items</span>
         ) : null}
+        </div>
       </div>
+      )}
     </div>
   );
 }

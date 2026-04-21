@@ -1,15 +1,5 @@
-import { useEffect, Fragment, useState } from "react";
-import { useInView } from "react-intersection-observer";
-import { MoreHorizontal, Eye, Edit, FileText, Search } from "lucide-react";
-import { format } from "date-fns";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { useGetInfiniteInvoices } from "@/api/hooks/invoice.hook";
+import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -18,20 +8,30 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
-import { useGetInfiniteInvoices } from "@/api/hooks/invoice.hook";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { useDebounce } from "@/hooks/use-debounce";
 import { useInvoiceStore } from "@/store/invoice.store";
-import { Badge } from "@/components/ui/badge";
 import type { IInvoice } from "@/types/invoice";
-import { cn } from "@/lib/utils";
+import { format } from "date-fns";
+import { Eye, FileText, MoreHorizontal, Search } from "lucide-react";
+import { Fragment, useEffect, useState } from "react";
+import { useInView } from "react-intersection-observer";
 
 export function InvoiceList() {
   const { ref, inView } = useInView();
   const [search, setSearch] = useState("");
+  const debouncedSearch = useDebounce(search, 500);
   const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading, isError } =
-    useGetInfiniteInvoices({ invoiceNumber: search });
+    useGetInfiniteInvoices({ search: debouncedSearch });
   const { openModal } = useInvoiceStore();
 
   useEffect(() => {
@@ -40,30 +40,8 @@ export function InvoiceList() {
     }
   }, [inView, hasNextPage, isFetchingNextPage, fetchNextPage]);
 
-  if (isLoading) {
-    return (
-      <div className="space-y-4">
-        {[...Array(5)].map((_, i) => (
-          <Skeleton key={i} className="w-full h-16 rounded-lg" />
-        ))}
-      </div>
-    );
-  }
-
-  if (isError) {
-    return <div className="p-8 text-center text-destructive bg-destructive/5 rounded-xl border border-destructive/20 font-medium">Failed to load invoices. Ensure backend is running.</div>;
-  }
-
   const handleAction = (mode: 'view' | 'edit', invoice: IInvoice) => {
     openModal(mode, invoice);
-  }
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'paid': return 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20';
-      case 'overdue': return 'bg-rose-500/10 text-rose-600 border-rose-500/20';
-      default: return 'bg-amber-500/10 text-amber-600 border-amber-500/20';
-    }
   }
 
   return (
@@ -78,13 +56,23 @@ export function InvoiceList() {
         />
       </div>
 
-      <div className="rounded-xl border bg-background shadow-sm overflow-hidden">
+      {isLoading ? (
+        <div className="space-y-4">
+          {[...Array(5)].map((_, i) => (
+            <Skeleton key={i} className="w-full h-16 rounded-lg" />
+          ))}
+        </div>
+      ) : isError ? (
+        <div className="p-8 text-center text-destructive bg-destructive/5 rounded-xl border border-destructive/20 font-medium">
+          Failed to load invoices. Ensure backend is running.
+        </div>
+      ) : (
+        <div className="rounded-xl border bg-background shadow-sm overflow-hidden">
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
               <TableHead className="font-bold">Invoice #</TableHead>
               <TableHead className="font-bold">Customer</TableHead>
-              <TableHead className="font-bold text-center">Status</TableHead>
               <TableHead className="font-bold">Date</TableHead>
               <TableHead className="font-bold text-right">Grand Total</TableHead>
               <TableHead className="w-[80px] text-right"></TableHead>
@@ -109,11 +97,6 @@ export function InvoiceList() {
                         <span className="text-[10px] text-muted-foreground">{invoice.customerDetails.phoneNumber}</span>
                       </div>
                     </TableCell>
-                    <TableCell className="text-center">
-                       <Badge variant="outline" className={cn("px-2 py-0 uppercase text-[10px] tracking-widest", getStatusColor(invoice.status))}>
-                         {invoice.status}
-                       </Badge>
-                    </TableCell>
                     <TableCell className="text-muted-foreground text-sm">
                       {invoice.date ? format(new Date(invoice.date), "dd MMM yyyy") : "-"}
                     </TableCell>
@@ -133,8 +116,8 @@ export function InvoiceList() {
                           <DropdownMenuItem onClick={() => handleAction('view', invoice)} className="cursor-pointer gap-2">
                             <Eye className="h-4 w-4 text-muted-foreground" /> View
                           </DropdownMenuItem>
-                          <DropdownMenuItem onClick={() => handleAction('edit', invoice)} className="cursor-pointer gap-2">
-                            <Edit className="h-4 w-4 text-muted-foreground" /> Update
+                          <DropdownMenuItem className="cursor-pointer gap-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" /> Download PDF
                           </DropdownMenuItem>
                         </DropdownMenuContent>
                       </DropdownMenu>
@@ -159,10 +142,11 @@ export function InvoiceList() {
           ) : hasNextPage ? (
             <span className="text-xs text-muted-foreground font-medium">Scroll to load more</span>
           ) : data?.pages[0].invoices.length !== 0 ? (
-             <span className="text-xs text-muted-foreground opacity-50 font-medium tracking-wide">END OF HISTORY</span>
+             <span className="text-sm text-muted-foreground opacity-50">No more items</span>
           ) : null}
         </div>
       </div>
+      )}
     </div>
   );
 }

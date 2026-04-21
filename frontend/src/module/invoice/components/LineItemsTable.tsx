@@ -21,6 +21,7 @@ import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useFieldArray, useWatch, type Control, type FieldErrors, type UseFormRegister } from "react-hook-form";
 import { calculateRowTotal } from "../utils/invoice.utils";
+import { useDebounce } from "@/hooks/use-debounce";
 
 interface LineItemsTableProps {
   control: Control<any>;
@@ -28,16 +29,18 @@ interface LineItemsTableProps {
   errors: FieldErrors<any>;
   setValue: any;
   disabled?: boolean;
+  isViewMode?: boolean;
 }
 
-export function LineItemsTable({ control, register, errors, setValue, disabled }: LineItemsTableProps) {
+export function LineItemsTable({ control, register, errors, setValue, disabled, isViewMode }: LineItemsTableProps) {
   const { fields, append, remove } = useFieldArray({
     control,
     name: "items",
   });
 
   const [search, setSearch] = useState("");
-  const { data: itemPages } = useGetInfiniteItems({ name: search });
+  const debouncedSearch = useDebounce(search, 500);
+  const { data: itemPages } = useGetInfiniteItems({ name: debouncedSearch });
   const itemsList = itemPages?.pages.flatMap(p => p.items) || [];
 
   const watchedItems = useWatch({
@@ -55,9 +58,9 @@ export function LineItemsTable({ control, register, errors, setValue, disabled }
         discountType: item.discountType || "percentage",
         discountValue: item.discountValue || 0,
       };
-      
+
       const { rowTotal } = calculateRowTotal(calculationRow);
-      
+
       // Update only if different to avoid infinite loops
       if (item.rowTotal !== rowTotal) {
         setValue(`items.${index}.rowTotal`, rowTotal);
@@ -79,35 +82,37 @@ export function LineItemsTable({ control, register, errors, setValue, disabled }
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 bg-muted/30 p-4 rounded-lg border border-dashed">
-        <Label className="text-base font-semibold">Add Line Items</Label>
-        <div className="flex gap-2">
-          <Select onValueChange={(val) => {
-            const selected = itemsList.find(i => i._id === val);
-            if (selected) handleAddItem(selected);
-          }}>
-            <SelectTrigger className="w-full bg-background shadow-sm">
-              <SelectValue placeholder="Search or select a product..." />
-            </SelectTrigger>
-            <SelectContent>
-              <div className="p-2 sticky top-0 bg-popover z-10">
-                <Input 
-                  placeholder="Filter products..." 
-                  value={search} 
-                  onChange={(e) => setSearch(e.target.value)}
-                  className="h-8"
-                />
-              </div>
-              {itemsList.map((item) => (
-                <SelectItem key={item._id} value={item._id}>
-                  {item.name} - ₹{item.basePrice.toFixed(2)}
-                </SelectItem>
-              ))}
-              {itemsList.length === 0 && <div className="p-2 text-sm text-center text-muted-foreground">No products found</div>}
-            </SelectContent>
-          </Select>
+      {!isViewMode && (
+        <div className="flex flex-col gap-4 bg-muted/30 p-4 rounded-lg border border-dashed">
+          <Label className="text-base font-semibold">Add Line Items</Label>
+          <div className="flex gap-2">
+            <Select onValueChange={(val) => {
+              const selected = itemsList.find(i => i._id === val);
+              if (selected) handleAddItem(selected);
+            }}>
+              <SelectTrigger className="w-full bg-background shadow-sm">
+                <SelectValue placeholder="Search or select a product..." />
+              </SelectTrigger>
+              <SelectContent>
+                <div className="p-2 sticky top-0 bg-popover z-10">
+                  <Input
+                    placeholder="Filter products..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="h-8"
+                  />
+                </div>
+                {itemsList.map((item) => (
+                  <SelectItem key={item._id} value={item._id}>
+                    {item.name} - ₹{item.basePrice.toFixed(2)}
+                  </SelectItem>
+                ))}
+                {itemsList.length === 0 && <div className="p-2 text-sm text-center text-muted-foreground">No products found</div>}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="rounded-md border bg-background shadow-sm overflow-hidden">
         <Table>
@@ -131,66 +136,84 @@ export function LineItemsTable({ control, register, errors, setValue, disabled }
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Input
-                    type="number"
-                    {...register(`items.${index}.quantity` as const, { valueAsNumber: true })}
-                    disabled={disabled}
-                    className="h-8 w-16"
-                  />
-                </TableCell>
-                <TableCell>
-                  <Select 
-                    disabled={disabled}
-                    defaultValue={String((field as any).gstPercentage)}
-                    onValueChange={(val) => setValue(`items.${index}.gstPercentage`, Number(val))}
-                  >
-                    <SelectTrigger className="h-8 w-24">
-                      <SelectValue placeholder="GST" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {[0, 5, 12, 18, 28].map(gst => (
-                        <SelectItem key={gst} value={String(gst)}>{gst}%</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <div className="flex items-center gap-1">
-                    <Select 
-                      disabled={disabled}
-                      defaultValue={(field as any).discountType}
-                      onValueChange={(val: any) => setValue(`items.${index}.discountType`, val)}
-                    >
-                      <SelectTrigger className="h-8 w-16 px-1 text-[10px]">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="percentage">%</SelectItem>
-                        <SelectItem value="amount">₹</SelectItem>
-                      </SelectContent>
-                    </Select>
+                  {isViewMode ? (
+                    <span className="font-medium text-sm">{(watchedItems?.[index] as any)?.quantity || 0}</span>
+                  ) : (
                     <Input
                       type="number"
-                      {...register(`items.${index}.discountValue` as const, { valueAsNumber: true })}
+                      {...register(`items.${index}.quantity` as const, { valueAsNumber: true })}
                       disabled={disabled}
-                      className="h-8 flex-1"
+                      className="h-8 w-16"
                     />
-                  </div>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {isViewMode ? (
+                    <span className="text-sm">{(field as any).gstPercentage || 0}%</span>
+                  ) : (
+                    <Select
+                      disabled={disabled}
+                      defaultValue={String((field as any).gstPercentage)}
+                      onValueChange={(val) => setValue(`items.${index}.gstPercentage`, Number(val))}
+                    >
+                      <SelectTrigger className="h-8 w-24">
+                        <SelectValue placeholder="GST" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {[0, 5, 12, 18, 28].map(gst => (
+                          <SelectItem key={gst} value={String(gst)}>{gst}%</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                </TableCell>
+                <TableCell>
+                  {isViewMode ? (
+                    <span className="text-sm">
+                      {(field as any).discountType === "percentage" ? "" : "₹"}
+                      {(field as any).discountValue || 0}
+                      {(field as any).discountType === "percentage" ? "%" : ""}
+                    </span>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <Select
+                        disabled={disabled}
+                        defaultValue={(field as any).discountType}
+                        onValueChange={(val: any) => setValue(`items.${index}.discountType`, val)}
+                      >
+                        <SelectTrigger className="h-8 w-16 px-1 text-[10px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="percentage">%</SelectItem>
+                          <SelectItem value="amount">₹</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        type="number"
+                        {...register(`items.${index}.discountValue` as const, { valueAsNumber: true })}
+                        disabled={disabled}
+                        className="h-8 flex-1"
+                      />
+                    </div>
+                  )}
                 </TableCell>
                 <TableCell className="text-right font-bold text-primary">
                   ₹{(watchedItems?.[index] as any)?.rowTotal?.toFixed(2) || "0.00"}
                 </TableCell>
                 <TableCell>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={() => remove(index)}
-                    disabled={disabled}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                  {!isViewMode && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                      onClick={() => remove(index)}
+                      disabled={disabled}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
                 </TableCell>
               </TableRow>
             ))}

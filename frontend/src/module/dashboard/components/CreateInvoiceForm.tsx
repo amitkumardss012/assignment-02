@@ -8,24 +8,17 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { format } from "date-fns";
 import { CalendarIcon, CheckCircle2, FileText } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { generateInvoiceNumber } from "../../invoice/utils/invoice.utils";
-import { invoiceFormSchema, type InvoiceFormValues } from "../../invoice/validators/invoice.validator";
 import { CustomerDetailsForm } from "../../invoice/components/CustomerDetailsForm";
 import { InvoiceSummary } from "../../invoice/components/InvoiceSummary";
 import { LineItemsTable } from "../../invoice/components/LineItemsTable";
+import { generateInvoiceNumber } from "../../invoice/utils/invoice.utils";
+import { invoiceFormSchema, type InvoiceFormValues } from "../../invoice/validators/invoice.validator";
 
 export function CreateInvoiceForm() {
   const { mutate: createInvoice, isPending, isSuccess, reset: resetMutation } = useCreateInvoice();
@@ -36,7 +29,6 @@ export function CreateInvoiceForm() {
     control,
     reset,
     setValue,
-    watch,
     formState: { errors },
   } = useForm({
     resolver: zodResolver(invoiceFormSchema),
@@ -56,7 +48,6 @@ export function CreateInvoiceForm() {
         totalGst: 0,
         grandTotal: 0,
       },
-      status: "pending" as const,
     },
   });
   const [date, setDate] = useState<Date | undefined>(new Date());
@@ -78,7 +69,6 @@ export function CreateInvoiceForm() {
         totalGst: 0,
         grandTotal: 0,
       },
-      status: "pending",
     });
     setDate(new Date());
     resetMutation();
@@ -87,7 +77,6 @@ export function CreateInvoiceForm() {
   const onSubmit = (data: InvoiceFormValues) => {
     const cleanedPayload = {
       ...data,
-      status: data.status || "pending",
       items: data.items.map(({ name, basePrice, ...rest }: any) => rest),
     } as any;
 
@@ -177,6 +166,7 @@ export function CreateInvoiceForm() {
         register={register}
         errors={errors}
         disabled={isPending}
+        control={control}
       />
 
       <div className="h-px w-full bg-border" />
@@ -199,25 +189,10 @@ export function CreateInvoiceForm() {
       <div className="h-px w-full bg-border" />
 
       {/* Summary Section */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start pt-6">
-        <div className="space-y-4 bg-muted/20 p-6 rounded-xl border border-dashed">
-          <Label className="text-sm font-medium">Invoice Status</Label>
-          <Select
-            disabled={isPending}
-            value={watch("status")}
-            onValueChange={(val: any) => setValue("status", val)}
-          >
-            <SelectTrigger className="w-full bg-background shadow-sm h-10">
-              <SelectValue placeholder="Select Status" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="pending">Pending</SelectItem>
-              <SelectItem value="paid">Paid</SelectItem>
-              <SelectItem value="overdue">Overdue</SelectItem>
-            </SelectContent>
-          </Select>
+      <div className="flex justify-end pt-6">
+        <div className="w-full md:w-1/2">
+          <InvoiceSummary control={control} setValue={setValue} />
         </div>
-        <InvoiceSummary control={control} setValue={setValue} />
       </div>
 
       {/* Action Bar */}

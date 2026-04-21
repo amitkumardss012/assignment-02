@@ -55,6 +55,7 @@ export interface IInvoiceQueryParams {
   customerName?: string;
   customerPhone?: string;
   invoiceNumber?: string;
+  search?: string;
 }
 
 export interface IPagination {
